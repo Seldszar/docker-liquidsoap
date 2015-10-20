@@ -22,6 +22,7 @@ If you want to add or remove some packages from Liquidsoap, you can edit the `PA
 
 ## Useful links
 
+ - [Github repository](https://github.com/Seldszar/docker-liquidsoap)
  - [Docker container page](https://index.docker.io/u/seldszar/liquidsoap/)
  - [Liquidsoap website](http://liquidsoap.fm/)
  - [Liquidsoap documentation](http://liquidsoap.fm/doc-svn/documentation.html)
