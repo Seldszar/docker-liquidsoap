@@ -68,6 +68,9 @@ USER root
 # Install Liquidsoap
 RUN make install
 
+# Remove Liquidsoap source files
+RUN rm -rf liquidsoap-full
+
 # Set executable permissions
 RUN touch /run.sh && chmod 777 /run.sh
 
