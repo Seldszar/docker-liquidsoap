@@ -1,5 +1,5 @@
 FROM debian:jessie
-MAINTAINER Alexandre Breteau contact@seldszar.fr
+MAINTAINER Alexandre Breteau <contact@seldszar.fr>
 
 # OCAML environment version to install
 ENV OCAML_VERSION 4.02.3
@@ -76,7 +76,7 @@ COPY ./supervisor.sh /
 COPY ./supervisord.conf /etc/
 
 # Run Liquidsoap help command if no arguments are defined
-CMD ["liquidsoap", "--help"]
+CMD ["--help"]
 
 # Define Liquidsoap as entry point
 ENTRYPOINT ["liquidsoap"]
