@@ -7,7 +7,7 @@ RUN apt-get update
 RUN apt-get install -y wget
 
 RUN echo "deb http://www.deb-multimedia.org jessie main non-free" > /etc/apt/sources.list.d/debian-multimedia.list
-RUN wget "http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2015.6.1_all.deb" -O deb-multimedia-keyring.deb
+RUN wget "http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2016.3.7_all.deb" -O deb-multimedia-keyring.deb
 RUN dpkg -i deb-multimedia-keyring.deb
 
 RUN apt-get update
