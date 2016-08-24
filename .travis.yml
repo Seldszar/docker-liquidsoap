@@ -1,5 +1,0 @@
-install:
-  - curl -sLo - http://j.mp/install-travis-docker | sh -xe
-
-script:
-  - ./run 'docker build -t seldszar/liquidsoap . && docker run seldszar/liquidsoap echo Build succeed'

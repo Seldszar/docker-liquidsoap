@@ -1,48 +1,58 @@
-FROM debian:jessie
+FROM buildpack-deps:jessie
 
+# Set environment variables
+ENV GOSU_VERSION 1.7
 ENV OCAML_VERSION 4.02.3
-ENV LIQUIDSOAP_VERSION 1.2.0
+ENV LIQUIDSOAP_VERSION 1.2.1
+ENV LIQUIDSOAP_PACKAGES aacplus alsa ao bjack cry dssi faad fdkaac ffmpeg flac frei0r gavl \
+  inotify ladspa lame lastfm lo mad ogg opus portaudio pulseaudio samplerate schroedinger \
+  soundtouch speex taglib theora voaacenc vorbis xmlplaylist
 
-RUN echo "deb http://www.deb-multimedia.org jessie main non-free" > /etc/apt/sources.list.d/debian-multimedia.list
+# Install GOSU
+RUN set -x \
+  && apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/* \
+  && wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" \
+  && wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture).asc" \
+  && export GNUPGHOME="$(mktemp -d)" \
+  && gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
+  && gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu \
+  && rm -r "$GNUPGHOME" /usr/local/bin/gosu.asc \
+  && chmod +x /usr/local/bin/gosu \
+  && gosu nobody true
 
-RUN apt-get update
-RUN apt-get dist-upgrade -y
-
-RUN apt-get install -y --allow-unauthenticated deb-multimedia-keyring
-RUN apt-get update
+# Includes non-free packages
+RUN sed -i "s/jessie main/jessie main contrib non-free/" /etc/apt/sources.list
 
 # Install dependencies
-RUN apt-get install -y autoconf automake build-essential bzip2 libfftw3-dev libpcre3-dev libtool-bin m4 patch pkg-config unzip wget
-RUN apt-get install -y dssi-dev frei0r-plugins-dev ladspa-sdk libao-dev libasound2-dev libavutil-dev libfaad-dev libfdk-aac-dev libflac-dev libgavl-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libjack-dev liblo-dev libmad0-dev libopus-dev libmp3lame-dev libogg-dev libpulse-dev libsamplerate0-dev libschroedinger-dev libsoundtouch0-dev libspeex-dev libswscale-dev libtag1-dev libvo-aacenc-dev libvorbis-dev libtheora-dev portaudio19-dev ncurses-dev
-
-# Download, compile & install AAC+ library
-RUN wget "http://tipok.org.ua/downloads/media/aacplus/libaacplus/libaacplus-2.0.2.tar.gz"
-RUN tar -zxvf libaacplus-2.0.2.tar.gz
-WORKDIR libaacplus-2.0.2
-RUN ./autogen.sh --enable-shared --enable-static
-RUN make
-RUN make install
-RUN ldconfig
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends aspcud libtool-bin sudo unzip
 
 # Install OPAM
-RUN wget "https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh" -O - | sh -s /usr/local/bin
+RUN wget -O - "https://raw.githubusercontent.com/ocaml/opam/master/shell/opam_installer.sh" | sh -s /usr/local/bin
 
-# Create the Liquidsoap user
-RUN adduser --disabled-password --gecos '' liquidsoap
-USER liquidsoap
+# Configure the Liquidsoap user
+RUN adduser --disabled-password --gecos '' liquidsoap \
+  && echo 'liquidsoap ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/liquidsoap
+
+# Set user to `liquidsoap` for installation
+WORKDIR /home/liquidsoap
 
 # Install Liquidsoap
-RUN opam init -a -y --comp $OCAML_VERSION
+RUN gosu liquidsoap bash -c " \
+  opam init -a -y --comp $OCAML_VERSION \
+    && opam install -y depext \
+    && opam depext $LIQUIDSOAP_PACKAGES liquidsoap=$LIQUIDSOAP_VERSION \
+    && opam install -y $LIQUIDSOAP_PACKAGES liquidsoap=$LIQUIDSOAP_VERSION"
 
-# Set OCAML related environment variables (`opam config env` workaround)
-ENV CAML_LD_LIBRARY_PATH "/home/liquidsoap/.opam/$OCAML_VERSION/lib/stublibs"
-ENV MANPATH "/home/liquidsoap/.opam/$OCAML_VERSION/man:$MANPATH"
-ENV PERL5LIB "/home/liquidsoap/.opam/$OCAML_VERSION/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/liquidsoap/.opam/$OCAML_VERSION/lib/toplevel"
-ENV PATH "/home/liquidsoap/.opam/$OCAML_VERSION/bin:$PATH"
+# Update shared library cache to add the AAC+ library compiled during the Liquidsoap installation
+RUN ldconfig
 
-# Install Liquidsoap & dependencies
-RUN opam install -y aacplus alsa ao bjack cry dssi cry dssi faad fdkaac ffmpeg flac frei0r gavl inotify ladspa lame lastfm lo mad ogg opus portaudio pulseaudio samplerate schroedinger soundtouch speex taglib theora voaacenc vorbis xmlplaylist
-RUN opam install -y liquidsoap=$LIQUIDSOAP_VERSION
+# Copy files into container
+COPY docker-entrypoint.sh /
 
-ENTRYPOINT ["liquidsoap"]
+# Setup Docker entrypoint
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Launch Liquidsoap
+CMD ["liquidsoap"]
